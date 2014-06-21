@@ -1,0 +1,25 @@
+{
+    "name": "cubalider/mobile-collection-with-doctrine-orm",
+    "description": "Provides an implementation of cubalider/mobile-collection-as-abstract using doctrine/orm for persistence",
+    "type": "library",
+    "keywords": ["mobile"],
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Yosmany Garcia",
+            "email": "yosmanyga@gmail.com"
+        }
+    ],
+    "require": {
+        "php": ">=5.3.0",
+        "cubalider/mobile-collection-as-abstract": "0.1.*",
+        "cubalider/mobile-with-doctrine-orm": "0.3.0",
+        "doctrine/orm": "2.4.*"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "4.1.*"
+    },
+    "autoload": {
+        "psr-0": { "Cubalider\\Component\\Mobile": "src/" }
+    }
+}

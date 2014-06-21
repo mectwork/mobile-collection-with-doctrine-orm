@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<doctrine-mapping xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping
+                  http://doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
+
+    <entity name="Cubalider\Component\Mobile\Model\CollectionMobile" table="collections_mobiles">
+        <id name="id" type="integer">
+            <generator strategy="AUTO"/>
+        </id>
+
+        <many-to-one field="mobile" target-entity="Cubalider\Component\Mobile\Model\Mobile">
+            <join-column referenced-column-name="number"/>
+        </many-to-one>
+        <many-to-one field="collection" target-entity="Cubalider\Component\Mobile\Model\Collection">
+            <join-column referenced-column-name="id"/>
+        </many-to-one>
+    </entity>
+
+</doctrine-mapping>
