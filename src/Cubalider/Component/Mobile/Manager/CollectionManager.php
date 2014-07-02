@@ -2,8 +2,10 @@
 
 namespace Cubalider\Component\Mobile\Manager;
 
+use Yosmanyga\Component\Dql\Fit\Builder;
+use Yosmanyga\Component\Dql\Fit\WhereCriteriaFit;
 use Cubalider\Component\Mobile\Model\Collection;
-use Doctrine\ORM\EntityManager;
+use Doctrine\ORM\EntityManagerInterface;
 
 /**
  * @author Miguel Torres <miguel.torres.ss24@gmail.com>
@@ -12,25 +14,30 @@ use Doctrine\ORM\EntityManager;
 class CollectionManager implements CollectionManagerInterface
 {
     /**
-     * @var \Doctrine\ORM\EntityManager
+     * @var string
+     */
+    private $class = 'Cubalider\Component\Mobile\Model\Collection';
+
+    /**
+     * @var \Doctrine\ORM\EntityManagerInterface
      */
     private $em;
 
     /**
-     * @var \Doctrine\ORM\EntityRepository
+     * @var Builder;
      */
-    private $repository;
+    private $builder;
 
     /**
-     * Constructor
-     * Additionally it creates a repository using $em, for given class
+     * Constructor.
      *
-     * @param EntityManager $em
+     * @param EntityManagerInterface $em
+     * @param Builder       $builder
      */
-    public function __construct(EntityManager $em)
+    public function __construct(EntityManagerInterface $em, Builder $builder = null)
     {
         $this->em = $em;
-        $this->repository = $this->em->getRepository('Cubalider\Component\Mobile\Model\Collection');
+        $this->builder = $builder ?: new Builder($em);
     }
 
     /**
@@ -38,7 +45,14 @@ class CollectionManager implements CollectionManagerInterface
      */
     public function pick($criteria)
     {
-        return $this->repository->findOneBy($criteria);
+        $qb = $this->builder->build(
+            $this->class,
+            new WhereCriteriaFit($criteria)
+        );
+
+        return $qb
+            ->getQuery()
+            ->getOneOrNullResult();
     }
 
     /**
@@ -46,7 +60,13 @@ class CollectionManager implements CollectionManagerInterface
      */
     public function collect()
     {
-        return $this->repository->findAll();
+        $qb = $this->builder->build(
+            $this->class
+        );
+
+        return $qb
+            ->getQuery()
+            ->getResult();
     }
 
     /**

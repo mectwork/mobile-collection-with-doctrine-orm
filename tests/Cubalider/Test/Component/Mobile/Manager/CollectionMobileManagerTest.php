@@ -2,12 +2,12 @@
 
 namespace Cubalider\Test\Component\Mobile\Manager;
 
+use Cubalider\Component\Mobile\Manager\CollectionMobileManager;
+use Cubalider\Component\Mobile\Model\Collection;
 use Cubalider\Component\Mobile\Model\CollectionMobile;
 use Cubalider\Component\Mobile\Model\Mobile;
-use Cubalider\Component\Mobile\Model\Collection;
-use Cubalider\Component\Mobile\Manager\CollectionMobileManager;
-use Cubalider\Test\Component\Mobile\EntityManagerBuilder;
-use Doctrine\ORM\EntityManager;
+use Yosmanyga\Component\Dql\Fit\Builder;
+use Yosmanyga\Component\Dql\Fit\WhereCriteriaFit;
 
 /**
  * @author Miguel Torres <miguel.torres.ss24@gmail.com>
@@ -16,42 +16,35 @@ use Doctrine\ORM\EntityManager;
 class CollectionMobileManagerTest extends \PHPUnit_Framework_TestCase
 {
     /**
-     * @var EntityManager
+     * @covers \Cubalider\Component\Mobile\Manager\CollectionMobileManager::__construct
      */
-    private $em;
-
-    /**
-     * @var string
-     */
-    private $collectionMobileClass;
-
-    protected function setUp()
+    public function testConstructor()
     {
-        $this->collectionMobileClass = 'Cubalider\Component\Mobile\Model\CollectionMobile';
+        /** @var \Doctrine\ORM\EntityManager $em */
+        $em = $this->getMockBuilder('Doctrine\ORM\EntityManagerInterface')
+            ->getMock();
+        /** @var \Yosmanyga\Component\Dql\Fit\Builder $builder */
+        $builder = $this->getMockBuilder('Yosmanyga\Component\Dql\Fit\Builder')
+            ->setConstructorArgs(array($em))
+            ->getMock();
+        $manager = new CollectionMobileManager($em, $builder);
 
-        $builder = new EntityManagerBuilder();
-        $this->em = $builder->createEntityManager(
-            array(
-                sprintf("%s/../../../../../../src/Cubalider/Component/Mobile/Resources/config/doctrine", __DIR__),
-                sprintf("%s/../../../../../../vendor/cubalider/mobile-with-doctrine-orm/src/Cubalider/Component/Mobile/Resources/config/doctrine", __DIR__)
-            ),
-            array(
-                'Cubalider\Component\Mobile\Model\Collection',
-                'Cubalider\Component\Mobile\Model\CollectionMobile',
-                'Cubalider\Component\Mobile\Model\Mobile'
-            )
-        );
+        $this->assertAttributeEquals($em, 'em', $manager);
+        $this->assertAttributeEquals($builder, 'builder', $manager);
     }
 
     /**
      * @covers \Cubalider\Component\Mobile\Manager\CollectionMobileManager::__construct
      */
-    public function testConstructor()
+    public function testConstructorWithDefaultParameters()
     {
-        $manager = new CollectionMobileManager($this->em);
+        /** @var \Doctrine\ORM\EntityManager $em */
+        $em = $this->getMockBuilder('Doctrine\ORM\EntityManagerInterface')
+            ->getMock();
+        /** @var \Doctrine\ORM\EntityManager $em */
+        $manager = new CollectionMobileManager($em);
 
-        $this->assertAttributeEquals($this->em, 'em', $manager);
-        $this->assertAttributeEquals($this->em->getRepository($this->collectionMobileClass), 'repository', $manager);
+        $this->assertAttributeEquals(new Builder($em), 'builder', $manager);
     }
 
     /**
@@ -59,36 +52,47 @@ class CollectionMobileManagerTest extends \PHPUnit_Framework_TestCase
      */
     public function testCollect()
     {
-        /* Fixtures */
-
+        $em = $this->getMock('Doctrine\ORM\EntityManagerInterface');
+        $builder = $this->getMockBuilder('Yosmanyga\Component\Dql\Fit\Builder')
+            ->disableOriginalConstructor()
+            ->getMock();
         $collection = new Collection();
-        $this->em->persist($collection);
+        $mobile = new Mobile();
+        $collectionMobile = new CollectionMobile();
+        $collectionMobile->setMobile($mobile);
+        $collectionMobile->setCollection($collection);
+        $qb = $this->getMockBuilder('Doctrine\ORM\QueryBuilder')
+            ->disableOriginalConstructor()
+            ->getMock();
+        $query = $this->getMockBuilder('Doctrine\ORM\AbstractQuery')
+            ->disableOriginalConstructor()
+            ->setMethods(array('getResult'))
+            ->getMockForAbstractClass();
+        /** @var \Doctrine\ORM\EntityManager $em */
+        /** @var \Yosmanyga\Component\Dql\Fit\Builder $builder */
+        $manager = new CollectionMobileManager($em, $builder);
 
-        $mobile1 = new Mobile();
-        $mobile1->setNumber('number1');
-        $this->em->persist($mobile1);
+        /** @var \PHPUnit_Framework_MockObject_MockObject $builder */
+        $builder
+            ->expects($this->once())
+            ->method('build')
+            ->with(
+                'Cubalider\Component\Mobile\Model\CollectionMobile',
+                new WhereCriteriaFit(array(
+                    'collection' => $collection->getId()
+                ))
+            )
+            ->will($this->returnValue($qb));
+        $qb
+            ->expects($this->once())
+            ->method('getQuery')
+            ->will($this->returnValue($query));
+        $query
+            ->expects($this->once())
+            ->method('getResult')
+            ->will($this->returnValue(array($collectionMobile)));
 
-        $mobile2 = new Mobile();
-        $mobile2->setNumber('number2');
-        $this->em->persist($mobile2);
-
-        $collectionMobile1 = new CollectionMobile();
-        $collectionMobile1->setCollection($collection);
-        $collectionMobile1->setMobile($mobile1);
-        $this->em->persist($collectionMobile1);
-
-        $collectionMobile2 = new CollectionMobile();
-        $collectionMobile2->setCollection($collection);
-        $collectionMobile2->setMobile($mobile2);
-        $this->em->persist($collectionMobile2);
-
-        $this->em->flush();
-
-        /* Test */
-
-        $manager = new CollectionMobileManager($this->em);
-
-        $this->assertEquals(array($mobile1, $mobile2), $manager->collect($collection));
+        $this->assertEquals(array($mobile), $manager->collect($collection));
     }
 
     /**
@@ -96,28 +100,23 @@ class CollectionMobileManagerTest extends \PHPUnit_Framework_TestCase
      */
     public function testAdd()
     {
-        /* Fixtures */
-
-        $collection = new Collection();
-        $this->em->persist($collection);
-
+        $em = $this->getMock('Doctrine\ORM\EntityManagerInterface');
         $mobile = new Mobile();
-        $mobile->setNumber('number');
-        $this->em->persist($mobile);
+        $collection = new Collection();
+        $collectionMobile = new CollectionMobile();
+        $collectionMobile->setMobile($mobile);
+        $collectionMobile->setCollection($collection);
+        /** @var \Doctrine\ORM\EntityManager $em */
+        $manager = new CollectionMobileManager($em);
 
-        /* Test */
+        /** @var \PHPUnit_Framework_MockObject_MockObject $em */
+        $em
+            ->expects($this->once())->method('persist')
+            ->with($this->equalTo($collectionMobile));
+        $em
+            ->expects($this->once())->method('flush');
 
-        $manager = new CollectionMobileManager($this->em);
         $manager->add($mobile, $collection);
-
-        $collectionMobileRepository = $this->em->getRepository($this->collectionMobileClass);
-        $collectionMobiles = $collectionMobileRepository->findAll();
-        $this->assertEquals(1, count($collectionMobiles));
-
-        /** @var CollectionMobile $collectionMobile */
-        $collectionMobile = $collectionMobiles[0];
-        $this->assertSame($collection, $collectionMobile->getCollection());
-        $this->assertSame($mobile, $collectionMobile->getMobile());
     }
 
     /**
@@ -125,30 +124,54 @@ class CollectionMobileManagerTest extends \PHPUnit_Framework_TestCase
      */
     public function testRemove()
     {
-        /* Fixtures */
-
+        $em = $this->getMock('Doctrine\ORM\EntityManagerInterface');
+        $builder = $this->getMockBuilder('Yosmanyga\Component\Dql\Fit\Builder')
+            ->disableOriginalConstructor()
+            ->getMock();
         $collection = new Collection();
-        $this->em->persist($collection);
-
         $mobile = new Mobile();
-        $mobile->setNumber('number');
-        $this->em->persist($mobile);
-
         $collectionMobile = new CollectionMobile();
-        $collectionMobile->setCollection($collection);
         $collectionMobile->setMobile($mobile);
-        $this->em->persist($collectionMobile);
+        $collectionMobile->setCollection($collection);
+        $qb = $this->getMockBuilder('Doctrine\ORM\QueryBuilder')
+            ->disableOriginalConstructor()
+            ->getMock();
+        $query = $this->getMockBuilder('Doctrine\ORM\AbstractQuery')
+            ->disableOriginalConstructor()
+            ->setMethods(array('getOneOrNullResult'))
+            ->getMockForAbstractClass();
+        /** @var \Doctrine\ORM\EntityManager $em */
+        /** @var \Yosmanyga\Component\Dql\Fit\Builder $builder */
+        $manager = new CollectionMobileManager($em, $builder);
 
-        $this->em->flush();
+        /** @var \PHPUnit_Framework_MockObject_MockObject $builder */
+        $builder
+            ->expects($this->once())
+            ->method('build')
+            ->with(
+                'Cubalider\Component\Mobile\Model\CollectionMobile',
+                new WhereCriteriaFit(array(
+                    'mobile' => $mobile->getNumber(),
+                    'collection' => $collection->getId()
+                ))
+            )
+            ->will($this->returnValue($qb));
+        $qb
+            ->expects($this->once())
+            ->method('getQuery')
+            ->will($this->returnValue($query));
+        $query
+            ->expects($this->once())
+            ->method('getOneOrNullResult')
+            ->will($this->returnValue($collectionMobile));
 
-        /* Test */
-
-        $manager = new CollectionMobileManager($this->em);
-
-        $collectionMobileRepository = $this->em->getRepository($this->collectionMobileClass);
+        /** @var \PHPUnit_Framework_MockObject_MockObject $em */
+        $em
+            ->expects($this->once())->method('remove')
+            ->with($this->equalTo($collectionMobile));
+        $em
+            ->expects($this->once())->method('flush');
 
         $manager->remove($mobile, $collection);
-
-        $this->assertNull($collectionMobileRepository->findOneBy(array('collection' => $collection, 'mobile' => $mobile)));
     }
 }

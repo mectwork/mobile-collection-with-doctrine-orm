@@ -2,10 +2,12 @@
 
 namespace Cubalider\Component\Mobile\Manager;
 
-use Cubalider\Component\Mobile\Model\CollectionMobile;
 use Cubalider\Component\Mobile\Model\Collection;
+use Cubalider\Component\Mobile\Model\CollectionMobile;
 use Cubalider\Component\Mobile\Model\Mobile;
-use Doctrine\ORM\EntityManager;
+use Doctrine\ORM\EntityManagerInterface;
+use Yosmanyga\Component\Dql\Fit\Builder;
+use Yosmanyga\Component\Dql\Fit\WhereCriteriaFit;
 
 /**
  * @author Miguel Torres <miguel.torres.ss24@gmail.com>
@@ -14,22 +16,30 @@ use Doctrine\ORM\EntityManager;
 class CollectionMobileManager implements CollectionMobileManagerInterface
 {
     /**
-     * @var \Doctrine\ORM\EntityManager
+     * @var string
+     */
+    private $class = 'Cubalider\Component\Mobile\Model\CollectionMobile';
+
+    /**
+     * @var \Doctrine\ORM\EntityManagerInterface
      */
     private $em;
 
     /**
-     * @var \Doctrine\ORM\EntityRepository
+     * @var Builder;
      */
-    private $repository;
+    private $builder;
 
     /**
-     * @param EntityManager $em
+     * Constructor.
+     *
+     * @param EntityManagerInterface $em
+     * @param Builder       $builder
      */
-    function __construct(EntityManager $em)
+    public function __construct(EntityManagerInterface $em, Builder $builder = null)
     {
         $this->em = $em;
-        $this->repository = $this->em->getRepository('Cubalider\Component\Mobile\Model\CollectionMobile');
+        $this->builder = $builder ?: new Builder($em);
     }
 
     /**
@@ -37,10 +47,14 @@ class CollectionMobileManager implements CollectionMobileManagerInterface
      */
     public function collect(Collection $collection)
     {
-        /** @var CollectionMobile[] $collectionMobiles */
-        $collectionMobiles = $this->repository->findBy(array(
-            'collection' => $collection)
+        $qb = $this->builder->build(
+            $this->class,
+            new WhereCriteriaFit(array(
+                'collection' => $collection->getId()
+            ))
         );
+        /** @var CollectionMobile[] $collectionMobiles */
+        $collectionMobiles = $qb->getQuery()->getResult();
 
         $mobiles = array();
         foreach ($collectionMobiles as $collectionMobile) {
@@ -69,13 +83,19 @@ class CollectionMobileManager implements CollectionMobileManagerInterface
      */
     public function remove(Mobile $mobile, Collection $collection)
     {
-        $collectionMobile = $this->repository->findOneBy(array(
-            'mobile' => $mobile,
-            'collection' => $collection
-        ));
+        $qb = $this->builder->build(
+            $this->class,
+            new WhereCriteriaFit(array(
+                'mobile' => $mobile->getNumber(),
+                'collection' => $collection->getId()
+            ))
+        );
+        /** @var CollectionMobile[] $collectionMobiles */
+        $collectionMobile = $qb->getQuery()->getOneOrNullResult();
 
-        $this->em->remove($collectionMobile);
-
-        $this->em->flush();
+        if ($collectionMobile) {
+            $this->em->remove($collectionMobile);
+            $this->em->flush();
+        }
     }
 }
